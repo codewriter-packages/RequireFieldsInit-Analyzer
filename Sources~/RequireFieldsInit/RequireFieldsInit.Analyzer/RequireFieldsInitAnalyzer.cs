@@ -37,7 +37,7 @@ namespace CodeWriter.RequireFieldsInit
         private void OnCompilationStart(CompilationStartAnalysisContext context)
         {
             var requiredFieldsCache =
-                new ConcurrentDictionary<INamedTypeSymbol, HashSet<string>>(SymbolEqualityComparer.Default);
+                new ConcurrentDictionary<INamedTypeSymbol, List<string>>(SymbolEqualityComparer.Default);
             context.RegisterSyntaxNodeAction(ctx => CheckObjectCreation(ctx, requiredFieldsCache),
                 SyntaxKind.ObjectCreationExpression);
             context.RegisterCompilationEndAction(_ => requiredFieldsCache.Clear());
@@ -45,7 +45,7 @@ namespace CodeWriter.RequireFieldsInit
 
         private void CheckObjectCreation(
             SyntaxNodeAnalysisContext context,
-            ConcurrentDictionary<INamedTypeSymbol, HashSet<string>> requiredFieldsCache)
+            ConcurrentDictionary<INamedTypeSymbol, List<string>> requiredFieldsCache)
         {
             if (context.Node is not ObjectCreationExpressionSyntax creationSyntax)
             {
@@ -79,7 +79,7 @@ namespace CodeWriter.RequireFieldsInit
         private void Analyze(
             SyntaxNodeAnalysisContext context,
             ObjectCreationExpressionSyntax creationSyntax,
-            HashSet<string> requiredFields)
+            List<string> requiredFields)
         {
             var initializerExpressions =
                 (IEnumerable<ExpressionSyntax>) creationSyntax.Initializer?.Expressions ??
@@ -102,7 +102,7 @@ namespace CodeWriter.RequireFieldsInit
             }
         }
 
-        private static HashSet<string> PopulateRequiredFields(INamedTypeSymbol typeSymbol)
+        private static List<string> PopulateRequiredFields(INamedTypeSymbol typeSymbol)
         {
             var requireFieldsInit = typeSymbol
                 .GetAttributes()
@@ -114,7 +114,7 @@ namespace CodeWriter.RequireFieldsInit
                 return null;
             }
 
-            var requiredFields = new HashSet<string>();
+            var requiredFields = new List<string>();
 
             foreach (var memberName in typeSymbol.MemberNames)
             {

@@ -2,7 +2,7 @@
   "name": "com.codewriter.require-fields-init-analyzer",
   "displayName": "Require Fields Init Analyzer",
   "description": "Require Fields Init Analyzer for Unity",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "unity": "2021.3",
   "license": "MIT",
   "keywords": [

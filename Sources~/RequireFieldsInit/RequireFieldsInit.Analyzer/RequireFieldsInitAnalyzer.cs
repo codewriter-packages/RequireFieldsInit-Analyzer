@@ -36,11 +36,19 @@ namespace CodeWriter.RequireFieldsInit
 
         private void OnCompilationStart(CompilationStartAnalysisContext context)
         {
+            if (context.Compilation.GetTypeByMetadataName(RequireFieldsInitAttributeName)
+                is not INamedTypeSymbol attributeTypeSymbol)
+            {
+                return;
+            }
+
             var cache = new Cache
             {
+                AttributeTypeSymbol = attributeTypeSymbol,
                 RequiredFieldsCache =
                     new ConcurrentDictionary<INamedTypeSymbol, List<string>>(SymbolEqualityComparer.Default),
             };
+
 
             context.RegisterSyntaxNodeAction(ctx => CheckObjectCreation(ctx, cache),
                 SyntaxKind.ObjectCreationExpression);
@@ -66,7 +74,7 @@ namespace CodeWriter.RequireFieldsInit
 
             if (!cache.RequiredFieldsCache.TryGetValue(typeSymbol, out var allRequiredFields))
             {
-                allRequiredFields = PopulateRequiredFields(typeSymbol);
+                allRequiredFields = PopulateRequiredFields(typeSymbol, cache);
                 cache.RequiredFieldsCache.TryAdd(typeSymbol, allRequiredFields);
             }
 
@@ -104,12 +112,11 @@ namespace CodeWriter.RequireFieldsInit
             }
         }
 
-        private static List<string> PopulateRequiredFields(INamedTypeSymbol typeSymbol)
+        private static List<string> PopulateRequiredFields(INamedTypeSymbol typeSymbol, Cache cache)
         {
             var requireFieldsInit = typeSymbol
                 .GetAttributes()
-                .Any(it => it.AttributeClass?.Name.Equals(RequireFieldsInitAttributeName, StringComparison.Ordinal) ??
-                           false);
+                .Any(it => SymbolEqualityComparer.Default.Equals(it.AttributeClass, cache.AttributeTypeSymbol));
 
             if (!requireFieldsInit)
             {
@@ -131,6 +138,7 @@ namespace CodeWriter.RequireFieldsInit
 
         public class Cache
         {
+            public INamedTypeSymbol AttributeTypeSymbol;
             public ConcurrentDictionary<INamedTypeSymbol, List<string>> RequiredFieldsCache;
         }
     }

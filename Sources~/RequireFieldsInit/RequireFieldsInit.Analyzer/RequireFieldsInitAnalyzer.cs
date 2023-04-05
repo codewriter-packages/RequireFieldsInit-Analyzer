@@ -114,22 +114,64 @@ namespace CodeWriter.RequireFieldsInit
 
         private static List<string> PopulateRequiredFields(INamedTypeSymbol typeSymbol, Cache cache)
         {
-            var requireFieldsInit = typeSymbol
+            var requireFieldsInitData = typeSymbol
                 .GetAttributes()
-                .Any(it => SymbolEqualityComparer.Default.Equals(it.AttributeClass, cache.AttributeTypeSymbol));
+                .FirstOrDefault(it =>
+                    SymbolEqualityComparer.Default.Equals(it.AttributeClass, cache.AttributeTypeSymbol));
 
-            if (!requireFieldsInit)
+            if (requireFieldsInitData == null)
             {
                 return null;
             }
 
+            TypedConstant? optionalArg = null;
+            TypedConstant? requiredArg = null;
+
+            foreach (var kvp in requireFieldsInitData.NamedArguments)
+            {
+                switch (kvp)
+                {
+                    case {Key: "Optional", Value: {IsNull: false, Kind: TypedConstantKind.Array}}:
+                        optionalArg = kvp.Value;
+                        break;
+
+                    case {Key: "Required", Value: {IsNull: false, Kind: TypedConstantKind.Array}}:
+                        requiredArg = kvp.Value;
+                        break;
+                }
+            }
+
             var requiredFields = new List<string>();
 
-            foreach (var memberName in typeSymbol.MemberNames)
+            if (requiredArg is {Values: var requiredValuesArg})
             {
-                if (typeSymbol.GetMembers(memberName).OfType<IFieldSymbol>().Any())
+                foreach (var element in requiredValuesArg)
                 {
-                    requiredFields.Add(memberName);
+                    if (element is {IsNull: false, Kind: TypedConstantKind.Primitive, Value: string requiredFieldName})
+                    {
+                        requiredFields.Add(requiredFieldName);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var memberName in typeSymbol.MemberNames)
+                {
+                    if (typeSymbol.GetMembers(memberName).OfType<IFieldSymbol>().Any())
+                    {
+                        requiredFields.Add(memberName);
+                    }
+                }
+            }
+
+            if (optionalArg is {Values: var optionalValuesArg})
+            {
+                foreach (var element in optionalValuesArg)
+                {
+                    if (element is {IsNull: false, Kind: TypedConstantKind.Primitive, Value: string optionalFieldName})
+                    {
+                        requiredFields.Remove(optionalFieldName);
+                    }
                 }
             }
 

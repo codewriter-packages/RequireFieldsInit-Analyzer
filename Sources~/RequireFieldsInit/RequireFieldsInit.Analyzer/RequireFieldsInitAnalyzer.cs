@@ -16,9 +16,9 @@ namespace CodeWriter.RequireFieldsInit
         private const string RequireFieldsInitAttributeName = "RequireFieldsInitAttribute";
 
         private static readonly DiagnosticDescriptor Rule = new(
-            id: "RequireFieldsInit001",
-            title: "Missing field initialization",
-            messageFormat: "Missing field initialization: {0}",
+            id: "RequireFieldsInit_001",
+            title: "Required field not initialized",
+            messageFormat: "Required field '{0}' not initialized",
             category: "Usage",
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true

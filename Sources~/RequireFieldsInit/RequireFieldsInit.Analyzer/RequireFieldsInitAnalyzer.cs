@@ -15,7 +15,16 @@ namespace CodeWriter.RequireFieldsInit
     {
         private const string RequireFieldsInitAttributeName = "RequireFieldsInitAttribute";
 
-        private static readonly DiagnosticDescriptor Rule = new(
+        private static readonly DiagnosticDescriptor UnhandledErrorRule = new(
+            id: "RequireFieldsInit_000",
+            title: "Internal error",
+            messageFormat: "Internal error occured. Please open a bug report. Message: '{0}'",
+            category: "Usage",
+            defaultSeverity: DiagnosticSeverity.Error,
+            isEnabledByDefault: true
+        );
+
+        private static readonly DiagnosticDescriptor FieldNotInitializedRule = new(
             id: "RequireFieldsInit_001",
             title: "Required field not initialized",
             messageFormat: "Required field '{0}' not initialized",
@@ -24,7 +33,8 @@ namespace CodeWriter.RequireFieldsInit
             isEnabledByDefault: true
         );
 
-        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Rule);
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
+            => ImmutableArray.Create(UnhandledErrorRule, FieldNotInitializedRule);
 
         public override void Initialize(AnalysisContext context)
         {
@@ -50,7 +60,18 @@ namespace CodeWriter.RequireFieldsInit
             };
 
 
-            context.RegisterSyntaxNodeAction(ctx => CheckObjectCreation(ctx, cache),
+            context.RegisterSyntaxNodeAction(ctx =>
+                {
+                    try
+                    {
+                        CheckObjectCreation(ctx, cache);
+                    }
+                    catch (Exception ex)
+                    {
+                        ctx.ReportDiagnostic(
+                            Diagnostic.Create(UnhandledErrorRule, ctx.Node.GetLocation(), ex.Message));
+                    }
+                },
                 SyntaxKind.ObjectCreationExpression);
             context.RegisterCompilationEndAction(_ => cache.RequiredFieldsCache.Clear());
         }
@@ -108,7 +129,8 @@ namespace CodeWriter.RequireFieldsInit
                     continue;
                 }
 
-                context.ReportDiagnostic(Diagnostic.Create(Rule, creationSyntax.Type.GetLocation(), fieldName));
+                context.ReportDiagnostic(
+                    Diagnostic.Create(FieldNotInitializedRule, creationSyntax.Type.GetLocation(), fieldName));
             }
         }
 

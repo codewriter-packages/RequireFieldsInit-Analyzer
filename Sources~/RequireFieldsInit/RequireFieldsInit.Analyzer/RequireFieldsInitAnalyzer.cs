@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -83,12 +83,12 @@ namespace CodeWriter.RequireFieldsInit
                 return;
             }
 
-            if (creationSyntax.Type is not IdentifierNameSyntax identifierNameSyntax)
+            if (creationSyntax.Type is not NameSyntax nameSyntax)
             {
                 return;
             }
 
-            if (context.SemanticModel.GetSymbolInfo(identifierNameSyntax).Symbol is not INamedTypeSymbol typeSymbol)
+            if (context.SemanticModel.GetSymbolInfo(nameSyntax).Symbol is not INamedTypeSymbol typeSymbol)
             {
                 return;
             }

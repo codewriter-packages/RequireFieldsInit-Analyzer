@@ -1,6 +1,6 @@
 using System;
 
-[AttributeUsage(AttributeTargets.Struct)]
+[AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class)]
 public class RequireFieldsInitAttribute : Attribute
 {
     public string[] Required { get; set; }

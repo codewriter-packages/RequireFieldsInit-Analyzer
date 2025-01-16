@@ -202,10 +202,14 @@ namespace CodeWriter.RequireFieldsInit
             {
                 foreach (var memberName in typeSymbol.MemberNames)
                 {
-                    if (typeSymbol.GetMembers(memberName).OfType<IFieldSymbol>().Any())
+                    var fieldSymbol = typeSymbol.GetMembers(memberName).OfType<IFieldSymbol>().FirstOrDefault();
+
+                    if (fieldSymbol == null || fieldSymbol.IsStatic || fieldSymbol.IsReadOnly)
                     {
-                        requiredFields.Add(memberName);
+                        continue;
                     }
+
+                    requiredFields.Add(memberName);
                 }
             }
 

@@ -14,6 +14,7 @@ namespace CodeWriter.RequireFieldsInit
     public class RequireFieldsInitAnalyzer : DiagnosticAnalyzer
     {
         private const string RequireFieldsInitAttributeName = "RequireFieldsInitAttribute";
+        private const string RequireFieldsInitDisableChecksInNamespaceAttributeName = "RequireFieldsInitDisableChecksInNamespaceAttribute";
 
         private static readonly DiagnosticDescriptor UnhandledErrorRule = new(
             id: "RequireFieldsInit_000",
@@ -52,9 +53,21 @@ namespace CodeWriter.RequireFieldsInit
                 return;
             }
 
+            if (context.Compilation.GetTypeByMetadataName(RequireFieldsInitDisableChecksInNamespaceAttributeName)
+                is not INamedTypeSymbol disableChecksInNamespaceAttributeTypeSymbol)
+            {
+                return;
+            }
+
+            var disabledNamespaces = context.Compilation.Assembly.GetAttributes()
+                .Where(it => SymbolEqualityComparer.Default.Equals(it.AttributeClass, disableChecksInNamespaceAttributeTypeSymbol))
+                .Select(it => (string) it.NamedArguments.Single(a => a.Key == "Namespace").Value.Value)
+                .ToList();
+
             var cache = new Cache
             {
                 AttributeTypeSymbol = attributeTypeSymbol,
+                DisabledNamespaces = disabledNamespaces,
                 RequiredFieldsCache =
                     new ConcurrentDictionary<INamedTypeSymbol, List<string>>(SymbolEqualityComparer.Default),
             };
@@ -102,6 +115,16 @@ namespace CodeWriter.RequireFieldsInit
             if (allRequiredFields == null || allRequiredFields.Count == 0)
             {
                 return;
+            }
+
+            if (cache.DisabledNamespaces.Count > 0)
+            {
+                var ns = creationSyntax.FirstAncestorOrSelf<NamespaceDeclarationSyntax>()?.Name?.ToString() ?? "";
+
+                if (cache.DisabledNamespaces.Contains(ns))
+                {
+                    return;
+                }
             }
 
             Analyze(context, creationSyntax, allRequiredFields);
@@ -153,11 +176,11 @@ namespace CodeWriter.RequireFieldsInit
             {
                 switch (kvp)
                 {
-                    case {Key: "Optional", Value: {IsNull: false, Kind: TypedConstantKind.Array}}:
+                    case { Key: "Optional", Value: { IsNull: false, Kind: TypedConstantKind.Array } }:
                         optionalArg = kvp.Value;
                         break;
 
-                    case {Key: "Required", Value: {IsNull: false, Kind: TypedConstantKind.Array}}:
+                    case { Key: "Required", Value: { IsNull: false, Kind: TypedConstantKind.Array } }:
                         requiredArg = kvp.Value;
                         break;
                 }
@@ -165,11 +188,11 @@ namespace CodeWriter.RequireFieldsInit
 
             var requiredFields = new List<string>();
 
-            if (requiredArg is {Values: var requiredValuesArg})
+            if (requiredArg is { Values: var requiredValuesArg })
             {
                 foreach (var element in requiredValuesArg)
                 {
-                    if (element is {IsNull: false, Kind: TypedConstantKind.Primitive, Value: string requiredFieldName})
+                    if (element is { IsNull: false, Kind: TypedConstantKind.Primitive, Value: string requiredFieldName })
                     {
                         requiredFields.Add(requiredFieldName);
                     }
@@ -186,11 +209,11 @@ namespace CodeWriter.RequireFieldsInit
                 }
             }
 
-            if (optionalArg is {Values: var optionalValuesArg})
+            if (optionalArg is { Values: var optionalValuesArg })
             {
                 foreach (var element in optionalValuesArg)
                 {
-                    if (element is {IsNull: false, Kind: TypedConstantKind.Primitive, Value: string optionalFieldName})
+                    if (element is { IsNull: false, Kind: TypedConstantKind.Primitive, Value: string optionalFieldName })
                     {
                         requiredFields.Remove(optionalFieldName);
                     }
@@ -202,6 +225,7 @@ namespace CodeWriter.RequireFieldsInit
 
         public class Cache
         {
+            public List<string> DisabledNamespaces;
             public INamedTypeSymbol AttributeTypeSymbol;
             public ConcurrentDictionary<INamedTypeSymbol, List<string>> RequiredFieldsCache;
         }
